@@ -1,6 +1,6 @@
 /* Total Tab — new tab hub. Mist aesthetic. */
 
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
 * {
   box-sizing: border-box;
@@ -17,11 +17,11 @@
   --border-strong: #d4d9e1;
   --accent: #5b6ee0;
   --accent-h: 270;
-  --cat-1: #e07a5b;
+  --cat-1: #ff7d86;
   --cat-2: #00ff51;
-  --cat-3: #c89b3c;
-  --cat-4: #5b7da3;
-  --cat-5: #a35bac;
+  --cat-3: #feb925;
+  --cat-4: #5cc7ee;
+  --cat-5: #dc5eec;
   --up: #2a9461;
   --down: #d04545;
   font-family: "Manrope", system-ui, sans-serif;

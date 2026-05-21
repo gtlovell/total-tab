@@ -1,40 +1,87 @@
 // Total Tab — new tab hub
 // Vanilla JS, dependency-free, MV3-compatible.
-// State persisted via chrome.storage.sync (falls back to localStorage in dev).
+// State persisted via Chrome storage (falls back to localStorage in dev).
 
 // ─────────────────────────────────────────────────────────────
 // Storage adapter
 // ─────────────────────────────────────────────────────────────
 
 const store = (() => {
-  const hasChrome =
-    typeof chrome !== "undefined" && chrome.storage && chrome.storage.sync;
+  const hasChromeStorage =
+    typeof chrome !== "undefined" && chrome.storage;
+
+  function chromeArea(areaName) {
+    return hasChromeStorage ? chrome.storage[areaName] : null;
+  }
+
+  function areaForKey(key) {
+    // Bookmark collections can quickly exceed chrome.storage.sync's per-item
+    // quota, so keep the large mutable payload in local extension storage.
+    return key === "bookmarks" ? "local" : "sync";
+  }
+
+  function localStorageKey(areaName, key) {
+    return `tt_${areaName}_${key}`;
+  }
+
+  function getChromeValue(areaName, key, fallback) {
+    const area = chromeArea(areaName);
+    if (!area) return Promise.resolve(fallback);
+    return new Promise((resolve) => {
+      area.get([key], (data) => {
+        const err = chrome.runtime?.lastError;
+        if (err) {
+          console.warn(
+            `Total Tab could not read ${areaName}.${key}:`,
+            err.message,
+          );
+          resolve(fallback);
+          return;
+        }
+        resolve(data[key] !== undefined ? data[key] : fallback);
+      });
+    });
+  }
+
+  function setChromeValue(areaName, key, value) {
+    const area = chromeArea(areaName);
+    if (!area) return Promise.resolve(false);
+    return new Promise((resolve, reject) => {
+      area.set({ [key]: value }, () => {
+        const err = chrome.runtime?.lastError;
+        if (err) {
+          reject(new Error(err.message));
+          return;
+        }
+        resolve(true);
+      });
+    });
+  }
+
   return {
-    async get(key, fallback) {
-      if (hasChrome) {
-        return new Promise((res) => {
-          chrome.storage.sync.get([key], (data) => {
-            res(data[key] !== undefined ? data[key] : fallback);
-          });
-        });
+    async get(key, fallback, areaName = areaForKey(key)) {
+      if (hasChromeStorage) {
+        return getChromeValue(areaName, key, fallback);
       } else {
         try {
-          const raw = localStorage.getItem("tt_" + key);
+          const raw = localStorage.getItem(localStorageKey(areaName, key));
           return raw ? JSON.parse(raw) : fallback;
         } catch {
           return fallback;
         }
       }
     },
-    async set(key, value) {
-      if (hasChrome) {
-        return new Promise((res) =>
-          chrome.storage.sync.set({ [key]: value }, res),
-        );
+    async set(key, value, areaName = areaForKey(key)) {
+      if (hasChromeStorage) {
+        return setChromeValue(areaName, key, value);
       } else {
         try {
-          localStorage.setItem("tt_" + key, JSON.stringify(value));
+          localStorage.setItem(
+            localStorageKey(areaName, key),
+            JSON.stringify(value),
+          );
         } catch {}
+        return true;
       }
     },
   };
@@ -231,16 +278,45 @@ async function loadState() {
     ...(await store.get("settings", {})),
   };
   state.folders = await store.get("folders", DEFAULT_FOLDERS);
-  state.bookmarks = await store.get("bookmarks", DEFAULT_BOOKMARKS);
+
+  let bookmarks = await store.get("bookmarks", null, "local");
+  if (!bookmarks) {
+    const syncedBookmarks = await store.get("bookmarks", null, "sync");
+    bookmarks = syncedBookmarks || DEFAULT_BOOKMARKS;
+    if (syncedBookmarks) {
+      try {
+        await store.set("bookmarks", syncedBookmarks, "local");
+      } catch (err) {
+        console.warn(
+          "Total Tab could not migrate bookmarks to local storage:",
+          err?.message || err,
+        );
+      }
+    }
+  }
+  state.bookmarks = bookmarks;
+}
+async function saveStateKey(key, value, areaName, label) {
+  try {
+    await store.set(key, value, areaName);
+    return true;
+  } catch (err) {
+    console.warn(
+      `Total Tab could not save ${areaName}.${key}:`,
+      err.message,
+    );
+    showToast(`Could not save ${label}.`);
+    return false;
+  }
 }
 async function saveSettings() {
-  await store.set("settings", state.settings);
+  return saveStateKey("settings", state.settings, "sync", "settings");
 }
 async function saveFolders() {
-  await store.set("folders", state.folders);
+  return saveStateKey("folders", state.folders, "sync", "folders");
 }
 async function saveBookmarks() {
-  await store.set("bookmarks", state.bookmarks);
+  return saveStateKey("bookmarks", state.bookmarks, "local", "bookmarks");
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1086,17 +1162,21 @@ function renderFolder(folder) {
     ? h(
         "div",
         { class: "folder-body" },
-        h("div", { class: "section-label" }, phIcon("star"), "Pinned"),
-        h(
-          "div",
-          { class: "pinned-row drop-zone", ...bookmarkDropZoneAttrs(folder.id, true) },
-          ...fb.pinned.map((l, i) =>
-            renderBookmarkItem(l, folder.id, true, i),
-          ),
-          fb.pinned.length === 0
-            ? h("div", { class: "drop-empty" }, "Drop pinned bookmarks here")
-            : null,
-        ),
+        ...(fb.pinned.length
+          ? [
+              h("div", { class: "section-label" }, phIcon("star"), "Pinned"),
+              h(
+                "div",
+                {
+                  class: "pinned-row drop-zone",
+                  ...bookmarkDropZoneAttrs(folder.id, true),
+                },
+                ...fb.pinned.map((l, i) =>
+                  renderBookmarkItem(l, folder.id, true, i),
+                ),
+              ),
+            ]
+          : []),
         h("div", { class: "section-label" }, "All"),
         h(
           "div",

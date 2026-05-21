@@ -42,14 +42,19 @@ extension/
 | Tabbed widget rail | right rail |
 | Customize panel | header customize button |
 | Accent color, wallpaper, density, dark mode, name | Customize sheet |
-| Cross-device sync | `chrome.storage.sync` |
+| Settings sync | `chrome.storage.sync` |
+| Bookmark persistence | `chrome.storage.local` |
 
 ## State storage
 
-All state lives in `chrome.storage.sync` under three keys:
-- `settings` — accent, wallpaper, density, dark, name
-- `folders` — `[{ id, name, color }]`
-- `bookmarks` — `{ [folderId]: { pinned: [...], rest: [...] } }`
+State lives in Chrome extension storage under three keys:
+- `settings` — `chrome.storage.sync`; accent, wallpaper, density, dark, name
+- `folders` — `chrome.storage.sync`; `[{ id, name, color }]`
+- `bookmarks` — `chrome.storage.local`; `{ [folderId]: { pinned: [...], rest: [...] } }`
+
+Bookmark collections are kept in local extension storage because imported or edited
+bookmark sets can exceed `chrome.storage.sync` per-item quotas. Local extension
+storage persists across normal extension reloads and updates.
 
 In development outside the extension context, the storage adapter falls back to `localStorage`.
 
