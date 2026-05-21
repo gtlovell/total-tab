@@ -16,7 +16,7 @@ To disable, toggle the extension off in `chrome://extensions`. Your bookmarks an
 
 ```
 extension/
-├── manifest.json     ← MV3 manifest, new-tab override, storage permission
+├── manifest.json     ← MV3 manifest, new-tab override, storage + favicon permissions
 ├── newtab.html       ← Page shell
 ├── newtab.css        ← Mist aesthetic (Manrope, soft surfaces, oklch wallpapers)
 ├── newtab.js         ← App logic (vanilla JS, ~700 lines, no build step)

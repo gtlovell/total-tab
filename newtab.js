@@ -173,6 +173,23 @@ function displayUrl(u) {
   return (u || '').replace(/^https?:\/\//i, '').replace(/\/$/, '');
 }
 
+function faviconUrl(rawUrl, size = 32) {
+  if (!rawUrl) return '';
+  try {
+    const pageUrl = new URL(normalizeUrl(rawUrl));
+    if (!/^https?:$/i.test(pageUrl.protocol)) return '';
+    if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+      const url = new URL(chrome.runtime.getURL('/_favicon/'));
+      url.searchParams.set('pageUrl', pageUrl.href);
+      url.searchParams.set('size', String(size));
+      return url.toString();
+    }
+    return `${pageUrl.origin}/favicon.ico`;
+  } catch {
+    return '';
+  }
+}
+
 function timeOfDayGreeting() {
   const h = new Date().getHours();
   if (h < 5) return 'Good evening';
@@ -209,10 +226,23 @@ function buildSearchIndex() {
 // ─────────────────────────────────────────────────────────────
 
 function favTile(link, cls = 'fav-tile', extraStyle = {}) {
-  return h('span', {
+  const fallback = link.letter || (link.label || '?')[0].toUpperCase();
+  const tile = h('span', {
     class: cls,
     style: { background: link.color, ...extraStyle },
-  }, link.letter || (link.label || '?')[0].toUpperCase());
+  }, h('span', { class: 'fav-letter' }, fallback));
+  const src = faviconUrl(link.url, cls === 'fav-tile' ? 64 : 32);
+  if (src) {
+    tile.prepend(h('img', {
+      class: 'favicon',
+      src,
+      alt: '',
+      loading: 'lazy',
+      onLoad: () => { tile.classList.add('has-favicon'); },
+      onError: (e) => { e.currentTarget.remove(); },
+    }));
+  }
+  return tile;
 }
 
 function renderHeader() {
@@ -255,7 +285,7 @@ function renderHeader() {
   return h('div', { class: 'header' },
     h('div', { class: 'greet' },
       `${timeOfDayGreeting()}, `,
-      h('span', { class: 'accent' }, settings.name),
+      h('span', { class: 'accent', id: 'greeting-name' }, settings.name),
       '.',
       h('span', { class: 'time' }, '· ' + nowTime()),
     ),
@@ -339,7 +369,6 @@ function renderFolder(folder) {
   const nameEl = h('span', {
     class: 'folder-name',
     contentEditable: isEditing,
-    onClick: (e) => { if (!isEditing) toggleFolder(folder.id); },
     onDblclick: (e) => { e.stopPropagation(); startEditFolder(folder.id); },
     onBlur: (e) => commitEditFolder(folder.id, e.target.textContent),
     onKeydown: (e) => {
@@ -348,7 +377,10 @@ function renderFolder(folder) {
     },
   }, folder.name);
 
-  const head = h('div', { class: 'folder-head' },
+  const head = h('div', {
+    class: 'folder-head',
+    onClick: () => { if (!isEditing) toggleFolder(folder.id); },
+  },
     h('span', {
       class: 'folder-dot',
       style: { background: folder.color },
@@ -356,10 +388,10 @@ function renderFolder(folder) {
       title: 'Folder options',
     }),
     nameEl,
-    h('span', { class: 'folder-count', onClick: () => toggleFolder(folder.id) }, String(fb.pinned.length + fb.rest.length)),
-    h('span', { class: 'folder-spacer', onClick: () => toggleFolder(folder.id) }),
+    h('span', { class: 'folder-count' }, String(fb.pinned.length + fb.rest.length)),
+    h('span', { class: 'folder-spacer' }),
     h('button', { class: 'folder-menu-btn', onClick: (e) => { e.stopPropagation(); toggleFolderMenu(folder.id); }, title: 'Options' }, '⋯'),
-    h('span', { class: 'chev', onClick: () => toggleFolder(folder.id) }, '▾'),
+    h('span', { class: 'chev' }, '▾'),
   );
 
   const body = isOpen ? h('div', { class: 'folder-body' },
@@ -624,12 +656,18 @@ function renderSettingsSheet() {
   if (!state.ui.settingsOpen) return null;
   const s = state.settings;
   const update = (patch) => { Object.assign(s, patch); saveSettings(); render(); };
+  const updateGreetingName = (name) => {
+    s.name = name;
+    saveSettings();
+    const greetingName = document.getElementById('greeting-name');
+    if (greetingName) greetingName.textContent = name;
+  };
   return modal([
     h('h3', {}, 'Customize'),
     h('div', { class: 'desc' }, 'Make the page yours. Saved across all your devices.'),
 
     h('label', {}, 'Greeting name'),
-    h('input', { type: 'text', value: s.name, onInput: (e) => update({ name: e.target.value }) }),
+    h('input', { type: 'text', value: s.name, onInput: (e) => updateGreetingName(e.target.value) }),
 
     h('label', {}, 'Accent'),
     h('div', { class: 'swatches' },
