@@ -16,11 +16,12 @@ To disable, toggle the extension off in `chrome://extensions`. Your bookmarks an
 
 ```
 extension/
-├── manifest.json     ← MV3 manifest, new-tab override, storage + favicon permissions
+├── manifest.json     ← MV3 manifest, new-tab override, bookmarks + storage + favicon permissions
 ├── newtab.html       ← Page shell
 ├── newtab.css        ← Mist aesthetic (Manrope, soft surfaces, oklch wallpapers)
-├── newtab.js         ← App logic (vanilla JS, ~700 lines, no build step)
+├── newtab.js         ← App logic (vanilla JS, no build step)
 ├── icons/            ← 16/32/48/128 PNG icons
+├── vendor/           ← Local Phosphor web icon font assets
 └── README.md
 ```
 
@@ -32,11 +33,14 @@ extension/
 | Pinned tiles + full link list per folder | inside each folder |
 | Rename folder (double-click name) | folder header |
 | Recolor folder (click dot) | folder header |
-| Delete folder, add new folder | ⋯ menu, "New folder" button |
-| Add / remove bookmarks | ＋ rows, hover × on link |
+| Delete folder, add new folder | folder menu, "New folder" button |
+| Add / edit / remove bookmarks | add rows, bookmark hover controls |
+| Pin / unpin bookmarks | bookmark hover controls or edit sheet |
+| Drag-reorder folders and bookmarks | folder headers, bookmark rows/tiles |
+| Import Chrome bookmarks | Customize sheet |
 | Live bookmark search (⌘K to focus) | header |
 | Tabbed widget rail | right rail |
-| Customize panel | ⚙ in header |
+| Customize panel | header customize button |
 | Accent color, wallpaper, density, dark mode, name | Customize sheet |
 | Cross-device sync | `chrome.storage.sync` |
 
@@ -80,12 +84,12 @@ This scaffold is intentionally dependency-free so you can install it today. For 
 1. **Bundle / minify** — run through esbuild or Vite for smaller payloads.
 2. **TypeScript** — add types to keep the data shape honest as widgets grow.
 3. **React / Preact port** — there's a fully designed React prototype in the parent project (`Total Tab — Mist Final.html`); port it back here for richer state management.
-4. **Drag-reorder folders + bookmarks** — `Sortable.js` or HTML5 drag-and-drop.
-5. **Import existing Chrome bookmarks** — add `bookmarks` permission, read `chrome.bookmarks.getTree()`.
-6. **Background image upload** — `chrome.storage.local` for large blobs, or a `wallpaper` permission.
-7. **Onboarding** — first-run experience that imports Chrome bookmarks into a starter folder set.
+4. **Background image upload** — `chrome.storage.local` for large blobs, or a `wallpaper` permission.
+5. **Onboarding** — first-run experience that highlights import, editing, pinning, and drag-reorder controls.
 
 ## Iconography
+
+Interface icons use the regular weight from `@phosphor-icons/web`, vendored locally under `vendor/phosphor-icons/regular` so the extension can render icons without a CDN.
 
 The extension icons are generated procedurally — a rounded square in the accent color with two stacked rounded folders and a small rail, matching the page layout. To redesign, replace the four PNGs in `icons/`.
 

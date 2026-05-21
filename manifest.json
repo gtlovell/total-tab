@@ -25,7 +25,13 @@
   },
 
   "permissions": [
+    "bookmarks",
     "favicon",
     "storage"
+  ],
+
+  "host_permissions": [
+    "https://api.open-meteo.com/*",
+    "https://site.api.espn.com/*"
   ]
 }
